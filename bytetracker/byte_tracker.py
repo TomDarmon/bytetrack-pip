@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 from bytetracker import matching
 from bytetracker.basetrack import BaseTrack, TrackState
 from bytetracker.kalman_filter import KalmanFilter
@@ -7,16 +6,17 @@ from bytetracker.kalman_filter import KalmanFilter
 
 def xywh2xyxy(x):
     # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
+    y = np.copy(x)
     y[:, 0] = x[:, 0] - x[:, 2] / 2  # top left x
     y[:, 1] = x[:, 1] - x[:, 3] / 2  # top left y
     y[:, 2] = x[:, 0] + x[:, 2] / 2  # bottom right x
     y[:, 3] = x[:, 1] + x[:, 3] / 2  # bottom right y
     return y
 
+
 def xyxy2xywh(x):
     # Convert nx4 boxes from [x1, y1, x2, y2] to [x, y, w, h] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
+    y = np.copy(x)
     y[:, 0] = (x[:, 0] + x[:, 2]) / 2  # x center
     y[:, 1] = (x[:, 1] + x[:, 3]) / 2  # y center
     y[:, 2] = x[:, 2] - x[:, 0]  # width
@@ -28,7 +28,6 @@ class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
 
     def __init__(self, tlwh, score, cls):
-
         # wait activate
         self._tlwh = np.asarray(tlwh, dtype=float)
         self.kalman_filter = None
@@ -176,8 +175,9 @@ class BYTETracker(object):
         self.max_time_lost = self.buffer_size
         self.kalman_filter = KalmanFilter()
 
-    def update(self, dets, _):
-        self.frame_id += 1
+    def update(self, dets, frame_id):
+        
+        self.frame_id = frame_id
         activated_starcks = []
         refind_stracks = []
         lost_stracks = []
@@ -187,10 +187,6 @@ class BYTETracker(object):
         xywh = xyxy2xywh(xyxys)
         confs = dets[:, 4]
         clss = dets[:, 5]
-
-        classes = clss.numpy()
-        xyxys = xyxys.numpy()
-        confs = confs.numpy()
 
         remain_inds = confs > self.track_thresh
         inds_low = confs > 0.1
@@ -204,8 +200,8 @@ class BYTETracker(object):
         scores_keep = confs[remain_inds]
         scores_second = confs[inds_second]
 
-        clss_keep = classes[remain_inds]
-        clss_second = classes[remain_inds]
+        clss_keep = clss[remain_inds]
+        clss_second = clss[remain_inds]
 
         if len(dets) > 0:
             """Detections"""
